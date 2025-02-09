@@ -840,29 +840,25 @@ from openpyxl import load_workbook
 class UpdateBillExcelAPI(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
-    def post(self, request, *args, **kwargs):
-        # Check if the file is present in the request
+    def post(self, request):
         if 'file' not in request.FILES:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
 
         file = request.FILES['file']
-        
-        # Ensure file type is correct (Excel file)
         if not file.name.endswith(('.xlsx', '.xls')):
             return Response({'error': 'Invalid file format. Only .xlsx and .xls are allowed.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Try loading the Excel file
             wb = load_workbook(file)
             sheet = wb.active
             flag = False
 
-            for row in sheet.iter_rows(min_row=2):  # Skip header row
+            for row in sheet.iter_rows(min_row=2):
                 student_id = str(row[0].value).upper()
                 try:
                     student = Student.objects.select_related('id', 'id__user', 'id__department').get(id=student_id)
                 except Student.DoesNotExist:
-                    continue  # Skip if student not found
+                    continue
 
                 month = str(row[1].value)
                 year = row[2].value
@@ -870,13 +866,9 @@ class UpdateBillExcelAPI(APIView):
                 rebate_cnt = row[4].value
                 rebate_amt = row[5].value
                 total_amt = row[6].value
-
-                # Check if bill already exists
                 try:
                     bill = Monthly_bill.objects.get(student_id=student_id, month=month, year=year)
                     reg_main = Reg_main.objects.get(student_id=student_id)
-                    
-                    # Update the bill and balance
                     reg_main.balance += bill.total_bill
                     bill.amount = amt
                     bill.rebate_count = rebate_cnt
